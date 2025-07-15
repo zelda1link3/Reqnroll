@@ -98,6 +98,11 @@ namespace Reqnroll
             await _executionEngine.StepAsync(StepDefinitionKeyword.But, keyword, text, multilineTextArg, tableArg);
         }
 
+        public async Task CallScenarioAsync(string featureName, string scenarioName)
+        {
+            await _executionEngine.CallScenarioAsync(featureName, scenarioName);
+        }
+
         public void Pending()
         {
             _executionEngine.Pending();

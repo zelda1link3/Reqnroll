@@ -36,6 +36,8 @@ namespace Reqnroll
         Task AndAsync(string text, string multilineTextArg, Table tableArg, string keyword = null);
         Task ButAsync(string text, string multilineTextArg, Table tableArg, string keyword = null);
 
+        Task CallScenarioAsync(string featureName, string scenarioName);
+
         void Pending();
     }
 }

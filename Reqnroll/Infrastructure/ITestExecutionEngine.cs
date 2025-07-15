@@ -24,6 +24,8 @@ namespace Reqnroll.Infrastructure
 
         Task StepAsync(StepDefinitionKeyword stepDefinitionKeyword, string keyword, string text, string multilineTextArg, Table tableArg);
 
+        Task CallScenarioAsync(string featureName, string scenarioName);
+
         void Pending();
     }
 }
