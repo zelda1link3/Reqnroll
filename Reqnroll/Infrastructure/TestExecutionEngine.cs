@@ -763,7 +763,7 @@ namespace Reqnroll.Infrastructure
                     if (_reqnrollConfiguration.TraceSuccessfulSteps)
                         _testTracer.TraceStepDone(null, new object[] { scenarioName, featureName }, durationHolder.Duration);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     stopwatch.Stop();
                     durationHolder.Duration = stopwatch.Elapsed;
@@ -771,7 +771,7 @@ namespace Reqnroll.Infrastructure
                 }
                 finally
                 {
-                    await OnStepFinishedAsync(durationHolder);
+                    await OnStepEndAsync();
                 }
             }
             catch (Exception ex)
