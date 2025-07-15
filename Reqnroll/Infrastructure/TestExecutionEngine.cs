@@ -285,7 +285,7 @@ namespace Reqnroll.Infrastructure
             await _testThreadExecutionEventPublisher.PublishEventAsync(new ScenarioSkippedEvent());
         }
 
-        public virtual async Task CallScenarioAsync(string featureName, string scenarioName)
+        public virtual Task CallScenarioAsync(string featureName, string scenarioName)
         {
             if (string.IsNullOrEmpty(featureName))
                 throw new ArgumentException("Feature name cannot be null or empty", nameof(featureName));
@@ -293,9 +293,13 @@ namespace Reqnroll.Infrastructure
             if (string.IsNullOrEmpty(scenarioName))
                 throw new ArgumentException("Scenario name cannot be null or empty", nameof(scenarioName));
 
-            // For now, throw a NotImplementedException with a clear message
-            // This will be implemented in the next iteration
-            await Task.FromException(new NotImplementedException($"CallScenario functionality is not yet implemented. Attempting to call scenario '{scenarioName}' from feature '{featureName}'."));
+            // For the initial implementation, throw a detailed exception explaining the current limitations
+            throw new NotImplementedException(
+                $"CallScenario functionality is not fully implemented yet. " +
+                $"Attempting to call scenario '{scenarioName}' from feature '{featureName}'. " +
+                $"The basic API structure is in place, but scenario discovery and execution logic needs to be completed. " +
+                $"This feature requires integration with the test generation process to register scenarios at runtime."
+            );
         }
 
         public virtual void Pending()

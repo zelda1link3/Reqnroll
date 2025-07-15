@@ -119,6 +119,9 @@ namespace Reqnroll.Infrastructure
 
             testThreadContainer.RegisterTypeAs<AsyncTraceListener, ITraceListener>();
             testThreadContainer.RegisterTypeAs<TestTracer, ITestTracer>();
+            
+            // Register the scenario registry for CallScenario functionality
+            testThreadContainer.RegisterTypeAs<ScenarioRegistry, IScenarioRegistry>();
         }
 
         public void RegisterScenarioContainerDefaults(ObjectContainer scenarioContainer)
