@@ -497,8 +497,8 @@ namespace Reqnroll.Infrastructure
 
         private async Task ExecuteStepAsync(IContextManager contextManager, StepInstance stepInstance)
         {
-            // Handle built-in Scenario step for calling scenarios from other features
-            if (stepInstance.StepDefinitionType == StepDefinitionType.Scenario)
+            // Handle built-in Call step for calling scenarios from other features
+            if (stepInstance.StepDefinitionType == StepDefinitionType.Call)
             {
                 await HandleScenarioCallAsync(contextManager, stepInstance);
                 return;
@@ -727,7 +727,7 @@ namespace Reqnroll.Infrastructure
         {
             try
             {
-                await HandleBlockSwitchAsync(ScenarioBlock.Scenario);
+                await HandleBlockSwitchAsync(ScenarioBlock.Call);
                 
                 _testTracer.TraceStep(stepInstance, true);
 

@@ -6,18 +6,18 @@ This document describes the `CallScenario` functionality that has been added to 
 
 ## Usage
 
-### Built-in Scenario Keyword
+### Built-in Call Keyword
 
-The feature is implemented as a built-in language keyword. Use the `Scenario` keyword directly in your feature files:
+The feature is implemented as a built-in language keyword. Use the `Call` keyword directly in your feature files:
 
 ```gherkin
 Feature: Main Feature
 Scenario: Complete User Journey
     Given I am on the login page
-    Scenario "User logs in with valid credentials" from feature "Authentication"
+    Call "User logs in with valid credentials" from feature "Authentication"
     When I perform the main user actions
     Then the expected results should be achieved
-    Scenario "Cleanup Test Data" from feature "Helper Feature"
+    Call "Cleanup Test Data" from feature "Helper Feature"
 ```
 
 ### Syntax
@@ -25,7 +25,7 @@ Scenario: Complete User Journey
 The syntax for calling scenarios is:
 
 ```
-Scenario "Scenario Name" from feature "Feature Name"
+Call "Scenario Name" from feature "Feature Name"
 ```
 
 Where:
@@ -58,10 +58,10 @@ Feature: Main Feature
     Main test scenarios that use helper scenarios
 
 Scenario: Complete User Journey
-    Scenario "Setup Test Data" from feature "Helper Feature"
+    Call "Setup Test Data" from feature "Helper Feature"
     When I perform the main user actions
     Then the expected results should be achieved
-    Scenario "Cleanup Test Data" from feature "Helper Feature"
+    Call "Cleanup Test Data" from feature "Helper Feature"
 ```
 
 ## API
@@ -72,13 +72,13 @@ Scenario: Complete User Journey
 Task CallScenarioAsync(string featureName, string scenarioName);
 ```
 
-This method is available on the `ITestRunner` interface and is used internally by the built-in Scenario keyword.
+This method is available on the `ITestRunner` interface and is used internally by the built-in Call keyword.
 
 ## Current Status
 
 The built-in keyword and API infrastructure are fully implemented:
 
-- ✅ **Built-in Keyword**: The `Scenario` keyword is available in all feature files
+- ✅ **Built-in Keyword**: The `Call` keyword is available in all feature files
 - ✅ **API Available**: The `CallScenarioAsync` method is available on `ITestRunner`
 - ✅ **Parameter Validation**: Proper validation for feature name and scenario name
 - ✅ **Unit Tests**: Comprehensive test coverage for the API
@@ -91,7 +91,7 @@ The built-in keyword and API infrastructure are fully implemented:
 
 The current implementation includes:
 
-1. **Built-in Keyword**: `Scenario` keyword integrated into the Gherkin language
+1. **Built-in Keyword**: `Call` keyword integrated into the Gherkin language
 2. **Parser Support**: Automatic parsing of scenario call syntax
 3. **Interface Definition**: `ITestRunner.CallScenarioAsync(string featureName, string scenarioName)`
 4. **Parameter Validation**: Validates that both feature name and scenario name are provided

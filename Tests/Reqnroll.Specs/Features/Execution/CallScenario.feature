@@ -24,9 +24,9 @@ Background:
         Feature: Main Feature
         
         Scenario: Main Test Scenario
-            Given I call scenario "Setup Test Data" from feature "Helper Feature"
+            Call "Setup Test Data" from feature "Helper Feature"
             When I perform the main test
-            Then I call scenario "Cleanup Test Data" from feature "Helper Feature"
+            Call "Cleanup Test Data" from feature "Helper Feature"
         """
 
 Scenario: Should be able to call a scenario from another feature

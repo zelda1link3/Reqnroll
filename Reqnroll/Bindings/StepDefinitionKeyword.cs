@@ -5,7 +5,7 @@ namespace Reqnroll.Bindings
         Given = ScenarioBlock.Given,
         When = ScenarioBlock.When,
         Then = ScenarioBlock.Then,
-        Scenario = ScenarioBlock.Scenario,
+        Call = ScenarioBlock.Call,
         And = 5,
         But = 6
     }
