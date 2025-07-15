@@ -36,6 +36,7 @@ namespace Reqnroll.Tracing
                     {StepDefinitionKeyword.Given, d => d.GivenStepKeywords},
                     {StepDefinitionKeyword.When, d => d.WhenStepKeywords},
                     {StepDefinitionKeyword.Then, d => d.ThenStepKeywords},
+                    {StepDefinitionKeyword.Scenario, d => new[] { "Scenario" }}, // Built-in keyword for scenario calls
                     {StepDefinitionKeyword.And, d => d.AndStepKeywords},
                     {StepDefinitionKeyword.But, d => d.ButStepKeywords},
                 };

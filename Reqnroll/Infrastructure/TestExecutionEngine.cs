@@ -497,6 +497,13 @@ namespace Reqnroll.Infrastructure
 
         private async Task ExecuteStepAsync(IContextManager contextManager, StepInstance stepInstance)
         {
+            // Handle built-in Scenario step for calling scenarios from other features
+            if (stepInstance.StepDefinitionType == StepDefinitionType.Scenario)
+            {
+                await HandleScenarioCallAsync(contextManager, stepInstance);
+                return;
+            }
+
             // The 'HandleBlockSwitchAsync' call might throw an exception if any related before/after block hook fails.
             // This exception will be propagated to the caller, so we don't need to handle it here.
             await HandleBlockSwitchAsync(stepInstance.StepDefinitionType.ToScenarioBlock());
@@ -714,6 +721,77 @@ namespace Reqnroll.Infrastructure
         private StepDefinitionType GetCurrentBindingType()
         {
             return _contextManager.CurrentTopLevelStepDefinitionType ?? StepDefinitionType.Given;
+        }
+
+        private async Task HandleScenarioCallAsync(IContextManager contextManager, StepInstance stepInstance)
+        {
+            try
+            {
+                await HandleBlockSwitchAsync(ScenarioBlock.Scenario);
+                
+                _testTracer.TraceStep(stepInstance, true);
+
+                bool isStepSkipped = contextManager.ScenarioContext.ScenarioExecutionStatus != ScenarioExecutionStatus.OK;
+                
+                if (isStepSkipped)
+                {
+                    await OnSkipStepAsync();
+                    return;
+                }
+
+                // Parse the scenario call syntax: "Scenario Name" from feature "Feature Name"
+                var (scenarioName, featureName) = ParseScenarioCall(stepInstance.Text);
+                
+                if (string.IsNullOrEmpty(scenarioName) || string.IsNullOrEmpty(featureName))
+                {
+                    throw new ArgumentException("Invalid scenario call syntax. Expected format: '\"Scenario Name\" from feature \"Feature Name\"'");
+                }
+
+                var durationHolder = new DurationHolder();
+                var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+                
+                try
+                {
+                    await OnStepStartAsync();
+                    
+                    // Call the scenario directly
+                    await CallScenarioAsync(featureName, scenarioName);
+                    
+                    stopwatch.Stop();
+                    durationHolder.Duration = stopwatch.Elapsed;
+                    
+                    if (_reqnrollConfiguration.TraceSuccessfulSteps)
+                        _testTracer.TraceStepDone(null, new object[] { scenarioName, featureName }, durationHolder.Duration);
+                }
+                catch (Exception ex)
+                {
+                    stopwatch.Stop();
+                    durationHolder.Duration = stopwatch.Elapsed;
+                    throw;
+                }
+                finally
+                {
+                    await OnStepFinishedAsync(durationHolder);
+                }
+            }
+            catch (Exception ex)
+            {
+                UpdateStatusOnStepFailure(ScenarioExecutionStatus.TestError, ex);
+                throw;
+            }
+        }
+
+        private (string scenarioName, string featureName) ParseScenarioCall(string stepText)
+        {
+            // Expected format: "Scenario Name" from feature "Feature Name"
+            var match = System.Text.RegularExpressions.Regex.Match(stepText, @"^""([^""]+)""\s+from\s+feature\s+""([^""]+)""$");
+            
+            if (!match.Success)
+            {
+                return (string.Empty, string.Empty);
+            }
+            
+            return (match.Groups[1].Value, match.Groups[2].Value);
         }
 
         #endregion

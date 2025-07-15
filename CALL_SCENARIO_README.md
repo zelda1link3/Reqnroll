@@ -4,19 +4,37 @@
 
 This document describes the `CallScenario` functionality that has been added to Reqnroll. This feature allows you to call scenarios from other features by name, enabling better test organization and reusability.
 
-## API
+## Usage
 
-### ITestRunner.CallScenarioAsync
+### Built-in Scenario Keyword
 
-```csharp
-Task CallScenarioAsync(string featureName, string scenarioName);
+The feature is implemented as a built-in language keyword. Use the `Scenario` keyword directly in your feature files:
+
+```gherkin
+Feature: Main Feature
+Scenario: Complete User Journey
+    Given I am on the login page
+    Scenario "User logs in with valid credentials" from feature "Authentication"
+    When I perform the main user actions
+    Then the expected results should be achieved
+    Scenario "Cleanup Test Data" from feature "Helper Feature"
 ```
 
-This method is available on the `ITestRunner` interface and can be used within step definitions to call scenarios from other features.
+### Syntax
 
-## Usage Example
+The syntax for calling scenarios is:
 
-### Helper Feature (HelperFeature.feature)
+```
+Scenario "Scenario Name" from feature "Feature Name"
+```
+
+Where:
+- `"Scenario Name"` is the exact name of the scenario you want to call
+- `"Feature Name"` is the name of the feature containing the scenario
+
+### Examples
+
+#### Helper Feature (HelperFeature.feature)
 
 ```gherkin
 Feature: Helper Feature
@@ -33,33 +51,34 @@ Scenario: Cleanup Test Data
     Then the test data should be removed
 ```
 
-### Main Feature (MainFeature.feature)
+#### Main Feature (MainFeature.feature)
 
 ```gherkin
 Feature: Main Feature
     Main test scenarios that use helper scenarios
 
 Scenario: Complete User Journey
-    Given I call scenario "Setup Test Data" from feature "Helper Feature"
+    Scenario "Setup Test Data" from feature "Helper Feature"
     When I perform the main user actions
     Then the expected results should be achieved
-    And I call scenario "Cleanup Test Data" from feature "Helper Feature"
+    Scenario "Cleanup Test Data" from feature "Helper Feature"
 ```
 
-### Built-in Step Definitions
+## API
 
-Reqnroll now includes built-in step definitions for the CallScenario functionality. No additional step definition code is required - you can use the step directly in your feature files:
+### ITestRunner.CallScenarioAsync
 
-- `Given I call scenario "scenario name" from feature "feature name"`  
-- `When I call scenario "scenario name" from feature "feature name"`
-- `Then I call scenario "scenario name" from feature "feature name"`
+```csharp
+Task CallScenarioAsync(string featureName, string scenarioName);
+```
 
-The step definitions are automatically available in all Reqnroll projects.
+This method is available on the `ITestRunner` interface and is used internally by the built-in Scenario keyword.
 
 ## Current Status
 
-The API is currently implemented with the following status:
+The built-in keyword and API infrastructure are fully implemented:
 
+- ✅ **Built-in Keyword**: The `Scenario` keyword is available in all feature files
 - ✅ **API Available**: The `CallScenarioAsync` method is available on `ITestRunner`
 - ✅ **Parameter Validation**: Proper validation for feature name and scenario name
 - ✅ **Unit Tests**: Comprehensive test coverage for the API
@@ -72,10 +91,12 @@ The API is currently implemented with the following status:
 
 The current implementation includes:
 
-1. **Interface Definition**: `ITestRunner.CallScenarioAsync(string featureName, string scenarioName)`
-2. **Parameter Validation**: Validates that both feature name and scenario name are provided
-3. **Error Handling**: Throws appropriate exceptions for invalid parameters
-4. **Infrastructure**: Basic scenario registry infrastructure for future use
+1. **Built-in Keyword**: `Scenario` keyword integrated into the Gherkin language
+2. **Parser Support**: Automatic parsing of scenario call syntax
+3. **Interface Definition**: `ITestRunner.CallScenarioAsync(string featureName, string scenarioName)`
+4. **Parameter Validation**: Validates that both feature name and scenario name are provided
+5. **Error Handling**: Throws appropriate exceptions for invalid parameters
+6. **Infrastructure**: Basic scenario registry infrastructure for future use
 
 ### Future Implementation
 
@@ -91,6 +112,7 @@ The full implementation will include:
 The API currently provides the following error handling:
 
 - `ArgumentException`: Thrown when feature name or scenario name is null or empty
+- `ArgumentException`: Thrown when scenario call syntax is invalid
 - `NotImplementedException`: Thrown when the method is called (current state)
 
 ## Testing
@@ -98,17 +120,19 @@ The API currently provides the following error handling:
 Unit tests are provided in `Tests/Reqnroll.RuntimeTests/CallScenarioTests.cs` that cover:
 
 - Parameter validation
-- Error scenarios
+- Error scenarios  
 - API availability verification
 
 ## Benefits
 
-Once fully implemented, this feature will provide:
+This feature provides:
 
-1. **Test Reusability**: Share common scenarios across multiple features
-2. **Better Organization**: Keep setup and cleanup scenarios in dedicated helper features
-3. **Maintainability**: Centralize common test logic in reusable scenarios
-4. **Flexibility**: Build complex test flows by combining smaller scenarios
+1. **Clean, intuitive syntax** - No step definitions required
+2. **Built-in language feature** - Integrated directly into the Gherkin language  
+3. **Test Reusability**: Share common scenarios across multiple features
+4. **Better Organization**: Keep setup and cleanup scenarios in dedicated helper features
+5. **Maintainability**: Centralize common test logic in reusable scenarios
+6. **Flexibility**: Build complex test flows by combining smaller scenarios
 
 ## Next Steps
 

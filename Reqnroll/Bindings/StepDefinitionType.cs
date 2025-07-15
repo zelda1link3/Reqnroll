@@ -6,7 +6,8 @@ namespace Reqnroll.Bindings
     {
         Given = ScenarioBlock.Given,
         When = ScenarioBlock.When,
-        Then = ScenarioBlock.Then
+        Then = ScenarioBlock.Then,
+        Scenario = ScenarioBlock.Scenario
     }
 
     internal static class BindingTypeHelper
@@ -15,7 +16,8 @@ namespace Reqnroll.Bindings
         {
             if (block != ScenarioBlock.Given &&
                 block != ScenarioBlock.When &&
-                block != ScenarioBlock.Then)
+                block != ScenarioBlock.Then &&
+                block != ScenarioBlock.Scenario)
                 throw new ArgumentException("Unable to convert block to binding type", nameof(block));
 
             return (StepDefinitionType)(int)block;
