@@ -46,26 +46,15 @@ Scenario: Complete User Journey
     And I call scenario "Cleanup Test Data" from feature "Helper Feature"
 ```
 
-### Step Definition
+### Built-in Step Definitions
 
-```csharp
-[Binding]
-public class CallScenarioSteps
-{
-    private readonly ITestRunner _testRunner;
-    
-    public CallScenarioSteps(ITestRunner testRunner)
-    {
-        _testRunner = testRunner;
-    }
+Reqnroll now includes built-in step definitions for the CallScenario functionality. No additional step definition code is required - you can use the step directly in your feature files:
 
-    [Given(@"I call scenario ""(.*)"" from feature ""(.*)""")]
-    public async Task GivenICallScenarioFromFeature(string scenarioName, string featureName)
-    {
-        await _testRunner.CallScenarioAsync(featureName, scenarioName);
-    }
-}
-```
+- `Given I call scenario "scenario name" from feature "feature name"`  
+- `When I call scenario "scenario name" from feature "feature name"`
+- `Then I call scenario "scenario name" from feature "feature name"`
+
+The step definitions are automatically available in all Reqnroll projects.
 
 ## Current Status
 
