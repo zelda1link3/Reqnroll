@@ -6,6 +6,9 @@ using Xunit;
 using Reqnroll.CallScenario;
 using Reqnroll.Configuration;
 using Reqnroll.Plugins;
+using Reqnroll.BoDi;
+using Reqnroll.Bindings.Discovery;
+using Moq;
 
 namespace Reqnroll.CallScenario.Tests
 {
@@ -98,6 +101,44 @@ namespace Reqnroll.CallScenario.Tests
             
             // Assert
             config.AdditionalStepAssemblies.Should().ContainSingle(pluginAssemblyName);
+        }
+
+        [Fact]
+        public void CustomizeTestThreadDependencies_ShouldInstantiateCallableStepsBaseClasses()
+        {
+            // Arrange
+            var container = new ObjectContainer();
+            var mockRegistry = new Mock<IScenarioRegistry>();
+            var mockBindingRegistryBuilder = new Mock<IRuntimeBindingRegistryBuilder>();
+            
+            container.RegisterInstanceAs(mockRegistry.Object);
+            container.RegisterInstanceAs(mockBindingRegistryBuilder.Object);
+            
+            var testAssembly = Assembly.GetExecutingAssembly();
+            mockBindingRegistryBuilder.Setup(b => b.GetBindingAssemblies(It.IsAny<Assembly>()))
+                                    .Returns(new[] { testAssembly });
+            
+            var plugin = new CallScenarioPlugin();
+            var pluginType = typeof(CallScenarioPlugin);
+            var method = pluginType.GetMethod("OnCustomizeTestThreadDependencies", 
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            
+            var args = new CustomizeTestThreadDependenciesEventArgs(container);
+            
+            // Act
+            method?.Invoke(plugin, new object[] { null!, args });
+            
+            // Assert
+            mockBindingRegistryBuilder.Verify(b => b.GetBindingAssemblies(It.IsAny<Assembly>()), Times.Once);
+        }
+
+        // Test class for the CustomizeTestThreadDependencies test
+        private class TestCallableSteps : CallableStepsBase
+        {
+            public TestCallableSteps(IScenarioRegistry scenarioRegistry) : base(scenarioRegistry)
+            {
+                RegisterScenario("Test Feature", "Test Scenario", () => { });
+            }
         }
     }
 }
