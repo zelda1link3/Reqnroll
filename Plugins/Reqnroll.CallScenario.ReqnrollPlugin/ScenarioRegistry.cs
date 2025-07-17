@@ -50,6 +50,9 @@ namespace Reqnroll.CallScenario
                 ScenarioName = scenarioName,
                 ExecuteAsync = executeAsync
             };
+            
+            System.Diagnostics.Debug.WriteLine($"ScenarioRegistry: Registered scenario '{scenarioName}' from feature '{featureName}' (key: {key})");
+            System.Diagnostics.Debug.WriteLine($"ScenarioRegistry: Total scenarios registered: {_scenarios.Count}");
         }
 
         public void RegisterScenario(string featureName, string scenarioName, Action execute)
@@ -70,6 +73,10 @@ namespace Reqnroll.CallScenario
                 return null;
 
             var key = GetScenarioKey(featureName, scenarioName);
+            System.Diagnostics.Debug.WriteLine($"ScenarioRegistry: Looking for scenario '{scenarioName}' from feature '{featureName}' (key: {key})");
+            System.Diagnostics.Debug.WriteLine($"ScenarioRegistry: Available scenarios: {string.Join(", ", _scenarios.Keys)}");
+            System.Diagnostics.Debug.WriteLine($"ScenarioRegistry: Total scenarios available: {_scenarios.Count}");
+            
             return _scenarios.TryGetValue(key, out var scenario) ? scenario : null;
         }
 

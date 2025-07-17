@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Reqnroll.BoDi;
@@ -40,61 +41,94 @@ namespace Reqnroll.CallScenario
             if (!e.ObjectContainer.IsRegistered<IScenarioRegistry>())
             {
                 e.ObjectContainer.RegisterTypeAs<ScenarioRegistry, IScenarioRegistry>();
+                System.Diagnostics.Debug.WriteLine("CallScenarioPlugin: Registered ScenarioRegistry as singleton");
+            }
+            else
+            {
+                System.Diagnostics.Debug.WriteLine("CallScenarioPlugin: IScenarioRegistry already registered");
             }
         }
 
         private void OnCustomizeTestThreadDependencies(object sender, CustomizeTestThreadDependenciesEventArgs e)
         {
-            // Instantiate all CallableStepsBase classes to ensure their constructors run and scenarios are registered
-            var scenarioRegistry = e.ObjectContainer.Resolve<IScenarioRegistry>();
-            var bindingRegistryBuilder = e.ObjectContainer.Resolve<IRuntimeBindingRegistryBuilder>();
-            
-            // Get all binding assemblies - we need to find the test assembly
-            // The test assembly is typically the entry assembly or one of the loaded assemblies
-            var testAssembly = Assembly.GetEntryAssembly() ?? Assembly.GetCallingAssembly();
-            var bindingAssemblies = bindingRegistryBuilder.GetBindingAssemblies(testAssembly);
-            
-            // Also check all currently loaded assemblies for CallableStepsBase types
-            var allLoadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-                .Where(a => !a.IsDynamic && !a.GlobalAssemblyCache)
-                .Union(bindingAssemblies)
-                .Distinct()
-                .ToList();
-            
-            // Find all types that inherit from CallableStepsBase
-            foreach (var assembly in allLoadedAssemblies)
+            // Initialize scenarios by finding and instantiating CallableStepsBase classes
+            InitializeScenarios(e.ObjectContainer);
+        }
+
+        private void InitializeScenarios(IObjectContainer container)
+        {
+            try
             {
-                try
+                var scenarioRegistry = container.Resolve<IScenarioRegistry>();
+                System.Diagnostics.Debug.WriteLine($"CallScenarioPlugin: Retrieved ScenarioRegistry instance: {scenarioRegistry.GetHashCode()}");
+
+                // Find all loaded assemblies that might contain CallableStepsBase classes
+                var assemblies = AppDomain.CurrentDomain.GetAssemblies()
+                    .Where(a => !a.IsDynamic && !a.GlobalAssemblyCache && !a.GetName().Name.StartsWith("System."))
+                    .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"CallScenarioPlugin: Checking {assemblies.Count} assemblies for CallableStepsBase classes");
+
+                foreach (var assembly in assemblies)
                 {
-                    var callableStepTypes = assembly.GetTypes()
-                        .Where(type => typeof(CallableStepsBase).IsAssignableFrom(type) && 
-                                      !type.IsAbstract && 
-                                      !type.IsInterface)
-                        .ToList();
-                    
-                    // Instantiate each CallableStepsBase class to trigger scenario registration
-                    foreach (var type in callableStepTypes)
+                    try
                     {
-                        try
+                        var callableStepTypes = assembly.GetTypes()
+                            .Where(type => typeof(CallableStepsBase).IsAssignableFrom(type) && 
+                                          !type.IsAbstract && 
+                                          !type.IsInterface)
+                            .ToList();
+
+                        System.Diagnostics.Debug.WriteLine($"CallScenarioPlugin: Found {callableStepTypes.Count} CallableStepsBase types in {assembly.GetName().Name}");
+
+                        foreach (var type in callableStepTypes)
                         {
-                            var constructor = type.GetConstructor(new[] { typeof(IScenarioRegistry) });
-                            if (constructor != null)
+                            try
                             {
-                                constructor.Invoke(new object[] { scenarioRegistry });
+                                System.Diagnostics.Debug.WriteLine($"CallScenarioPlugin: Instantiating {type.Name}");
+                                
+                                // Try to create instance using DI container first
+                                object? instance = null;
+                                try
+                                {
+                                    instance = container.Resolve(type);
+                                    System.Diagnostics.Debug.WriteLine($"CallScenarioPlugin: Successfully resolved {type.Name} from DI container");
+                                }
+                                catch
+                                {
+                                    // If DI resolution fails, try manual instantiation
+                                    var constructor = type.GetConstructor(new[] { typeof(IScenarioRegistry) });
+                                    if (constructor != null)
+                                    {
+                                        instance = constructor.Invoke(new object[] { scenarioRegistry });
+                                        System.Diagnostics.Debug.WriteLine($"CallScenarioPlugin: Successfully instantiated {type.Name} manually");
+                                    }
+                                }
+
+                                if (instance != null)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"CallScenarioPlugin: Successfully created instance of {type.Name}");
+                                }
+                                else
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"CallScenarioPlugin: Failed to create instance of {type.Name}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"CallScenarioPlugin: Error instantiating {type.Name}: {ex.Message}");
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            // Log the error but continue processing other types
-                            System.Diagnostics.Debug.WriteLine($"Failed to instantiate {type.Name}: {ex.Message}");
-                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"CallScenarioPlugin: Error processing assembly {assembly.GetName().Name}: {ex.Message}");
                     }
                 }
-                catch (Exception ex)
-                {
-                    // Log the error but continue processing other assemblies
-                    System.Diagnostics.Debug.WriteLine($"Failed to process assembly {assembly.FullName}: {ex.Message}");
-                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"CallScenarioPlugin: Error in InitializeScenarios: {ex.Message}");
             }
         }
     }
