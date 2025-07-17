@@ -28,15 +28,21 @@ Or add to your project file:
 
 ## Usage
 
-### 1. Mark Your Scenarios
+### 1. Create Your Step Definition Class
 
-First, mark your reusable scenarios with the `[ReqnrollScenario]` attribute and ensure the feature class has the `[ReqnrollFeature]` attribute:
+Create a step definition class that inherits from `CallableStepsBase` and register your scenarios:
 
 ```csharp
-[ReqnrollFeature("Authentication")]
 [Binding]
-public class AuthenticationSteps
+public class AuthenticationSteps : CallableStepsBase
 {
+    public AuthenticationSteps(IScenarioRegistry scenarioRegistry) : base(scenarioRegistry)
+    {
+        // Register scenarios in the constructor
+        RegisterScenario("Authentication", "User logs in with valid credentials", UserLogsInWithValidCredentials);
+        RegisterScenario("Authentication", "User logs out", UserLogsOut);
+    }
+
     [Given(@"the user is on the login page")]
     public void GivenTheUserIsOnTheLoginPage()
     {
@@ -55,12 +61,17 @@ public class AuthenticationSteps
         // Implementation
     }
 
-    [ReqnrollScenario("User logs in with valid credentials")]
+    // Callable scenario methods
     public void UserLogsInWithValidCredentials()
     {
         GivenTheUserIsOnTheLoginPage();
         WhenTheUserEntersValidUsernameAndPassword();
         ThenTheUserShouldBeLoggedInSuccessfully();
+    }
+
+    public void UserLogsOut()
+    {
+        // Implementation
     }
 }
 ```
@@ -135,10 +146,15 @@ Scenario: Cleanup Test Data
 ### Helper Feature Steps
 
 ```csharp
-[ReqnrollFeature("Helper Feature")]
 [Binding]
-public class HelperFeatureSteps
+public class HelperFeatureSteps : CallableStepsBase
 {
+    public HelperFeatureSteps(IScenarioRegistry scenarioRegistry) : base(scenarioRegistry)
+    {
+        RegisterScenario("Helper Feature", "Setup Test Data", SetupTestData);
+        RegisterScenario("Helper Feature", "Cleanup Test Data", CleanupTestData);
+    }
+
     [Given(@"the database is clean")]
     public void GivenTheDatabaseIsClean()
     {
@@ -163,7 +179,6 @@ public class HelperFeatureSteps
         // Implementation
     }
 
-    [ReqnrollScenario("Setup Test Data")]
     public void SetupTestData()
     {
         GivenTheDatabaseIsClean();
@@ -172,7 +187,6 @@ public class HelperFeatureSteps
         ThenTheTestDataShouldBeAvailable();
     }
 
-    [ReqnrollScenario("Cleanup Test Data")]
     public void CleanupTestData()
     {
         GivenTestDataExists();
@@ -180,6 +194,8 @@ public class HelperFeatureSteps
         WhenIRemoveTestProducts();
         ThenTheTestDataShouldBeCleanedUp();
     }
+
+    // Other step definitions...
 }
 ```
 

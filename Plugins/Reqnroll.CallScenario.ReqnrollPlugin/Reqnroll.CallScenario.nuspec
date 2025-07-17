@@ -27,6 +27,7 @@
     <file src="build\**\*" target="build" />
     <file src="bin\$config$\netstandard2.0\Reqnroll.CallScenario.ReqnrollPlugin.dll" target="lib\netstandard2.0" />
     <file src="bin\$config$\netstandard2.0\Reqnroll.CallScenario.ReqnrollPlugin.pdb" target="lib\netstandard2.0" />
+    <file src="PackageReadme.md" target="readme.md" />
 
     <file src="$SolutionDir$LICENSE" target="LICENSE" />
     <file src="$SolutionDir$reqnroll-icon.png" target="images\" />

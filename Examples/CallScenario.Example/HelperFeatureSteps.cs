@@ -3,12 +3,20 @@ using Reqnroll.CallScenario;
 
 namespace CallScenario.Example
 {
-    [ReqnrollFeature("Helper Feature")]
     [Binding]
-    public class HelperFeatureSteps
+    public class HelperFeatureSteps : CallableStepsBase
     {
         private static bool _isLoggedIn;
         private static bool _testDataExists;
+
+        public HelperFeatureSteps(IScenarioRegistry scenarioRegistry) : base(scenarioRegistry)
+        {
+            // Register scenarios when the class is instantiated
+            RegisterScenario("Helper Feature", "User logs in with valid credentials", UserLogsInWithValidCredentials);
+            RegisterScenario("Helper Feature", "User logs out", UserLogsOut);
+            RegisterScenario("Helper Feature", "Setup Test Data", SetupTestData);
+            RegisterScenario("Helper Feature", "Cleanup Test Data", CleanupTestData);
+        }
 
         [Given(@"the user is on the login page")]
         public void GivenTheUserIsOnTheLoginPage()
@@ -108,7 +116,7 @@ namespace CallScenario.Example
             Console.WriteLine("✓ Test data is cleaned up");
         }
 
-        [ReqnrollScenario("User logs in with valid credentials")]
+        // Callable scenario methods
         public void UserLogsInWithValidCredentials()
         {
             GivenTheUserIsOnTheLoginPage();
@@ -116,7 +124,6 @@ namespace CallScenario.Example
             ThenTheUserShouldBeLoggedInSuccessfully();
         }
 
-        [ReqnrollScenario("User logs out")]
         public void UserLogsOut()
         {
             GivenTheUserIsLoggedIn();
@@ -124,7 +131,6 @@ namespace CallScenario.Example
             ThenTheUserShouldBeLoggedOutSuccessfully();
         }
 
-        [ReqnrollScenario("Setup Test Data")]
         public void SetupTestData()
         {
             GivenTheDatabaseIsClean();
@@ -133,7 +139,6 @@ namespace CallScenario.Example
             ThenTheTestDataShouldBeAvailable();
         }
 
-        [ReqnrollScenario("Cleanup Test Data")]
         public void CleanupTestData()
         {
             GivenTestDataExists();
