@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using Reqnroll.BoDi;
 using Reqnroll.Plugins;
 using Reqnroll.UnitTestProvider;
@@ -14,7 +15,20 @@ namespace Reqnroll.CallScenario
     {
         public void Initialize(RuntimePluginEvents runtimePluginEvents, RuntimePluginParameters runtimePluginParameters, UnitTestProviderConfiguration unitTestProviderConfiguration)
         {
+            runtimePluginEvents.ConfigurationDefaults += OnConfigurationDefaults;
             runtimePluginEvents.CustomizeGlobalDependencies += OnCustomizeGlobalDependencies;
+        }
+
+        private void OnConfigurationDefaults(object sender, ConfigurationDefaultsEventArgs e)
+        {
+            // Add the plugin assembly to the additional step assemblies so that CallScenarioSteps can be discovered
+            var pluginAssembly = Assembly.GetExecutingAssembly();
+            var assemblyName = pluginAssembly.GetName().Name;
+            
+            if (!e.ReqnrollConfiguration.AdditionalStepAssemblies.Contains(assemblyName))
+            {
+                e.ReqnrollConfiguration.AdditionalStepAssemblies.Add(assemblyName);
+            }
         }
 
         private void OnCustomizeGlobalDependencies(object sender, CustomizeGlobalDependenciesEventArgs e)
