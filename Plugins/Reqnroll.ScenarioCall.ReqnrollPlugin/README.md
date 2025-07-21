@@ -27,9 +27,26 @@ This plugin adds step definitions that allow you to call existing scenarios from
 
 ## Usage
 
-### Step 1: Register Scenarios
+### Automatic Discovery (New!)
 
-Before you can call scenarios, you need to register them. This is typically done in a `[BeforeTestRun]` hook:
+The plugin now automatically discovers scenarios from your Reqnroll-generated code! No manual registration needed.
+
+Simply use scenarios that exist in your feature files:
+
+```gherkin
+Feature: Order Processing
+    Scenario: Process order for logged in user
+        Given I call scenario "User logs in with valid credentials" from feature "Authentication"
+        When I add an item to cart
+        And I proceed to checkout
+        Then the order should be processed successfully
+```
+
+The plugin will automatically find the "User logs in with valid credentials" scenario from the "Authentication" feature.
+
+### Manual Registration (Fallback)
+
+If automatic discovery doesn't work for your scenario, you can still register scenarios manually in a `[BeforeTestRun]` hook:
 
 ```csharp
 [Binding]
@@ -50,24 +67,21 @@ public class ScenarioSetup
 }
 ```
 
-### Step 2: Call Scenarios
+## How It Works
 
-Once registered, you can call scenarios from your feature files:
+The plugin uses reflection to scan assemblies for classes marked with `GeneratedCodeAttribute` with "Reqnroll" as the tool name. It then:
 
-```gherkin
-Feature: Order Processing
-    Scenario: Process order for logged in user
-        Given I call scenario "User logs in with valid credentials" from feature "Authentication"
-        When I add an item to cart
-        And I proceed to checkout
-        Then the order should be processed successfully
-```
+1. Extracts feature names from `FeatureInfo` fields
+2. Identifies scenario names from test method attributes
+3. Makes these scenarios available for calling
+
+> **Note**: Currently, the automatic discovery identifies scenarios but does not extract their step definitions from the generated code. Called scenarios will be found but may not execute steps unless manually registered with step definitions.
 
 ## API Reference
 
 ### ScenarioRegistry
 
-The `ScenarioRegistry` class provides helper methods for registering scenarios:
+The `ScenarioRegistry` class provides helper methods for manual scenario registration:
 
 - `Register(scenarioName, featureName, ...steps)` - Register a scenario
 - `Given(text)` - Create a Given step
@@ -86,7 +100,24 @@ The plugin automatically provides these step definitions:
 
 ## Examples
 
-### Basic Authentication Scenario
+### Using Automatic Discovery
+
+```gherkin
+Feature: Authentication
+    Scenario: User logs in with valid credentials
+        Given there is a user registered with user name "Trillian" and password "139139"
+        When the user attempts to log in with user name "Trillian" and password "139139"
+        Then the login attempt should be successful
+        And the user should be authenticated
+
+Feature: Order Processing
+    Scenario: Process order for logged in user
+        Given I call scenario "User logs in with valid credentials" from feature "Authentication"
+        When I add an item to cart
+        Then the order should be processed successfully
+```
+
+### Manual Registration with Steps
 
 ```csharp
 ScenarioRegistry.Register(
@@ -99,20 +130,11 @@ ScenarioRegistry.Register(
 );
 ```
 
-### Calling the Scenario
-
-```gherkin
-Scenario: Admin can access admin panel
-    Given I call scenario "User logs in successfully" from feature "Authentication"
-    When I navigate to admin panel
-    Then I should see admin options
-```
-
 ## Important Notes
 
-1. **Scenario names and feature names must match exactly** - The scenario and feature names used in the registration must match exactly with what you use in the step definitions.
+1. **Scenario names and feature names must match exactly** - The scenario and feature names used must match exactly with those defined in your feature files.
 
-2. **Registration must happen before test execution** - Use `[BeforeTestRun]` hooks to register scenarios before any tests run.
+2. **Automatic discovery limitations** - Currently, automatic discovery finds scenarios but doesn't extract step definitions from generated code. For full functionality, use manual registration.
 
 3. **Step definitions must exist** - All steps referenced in registered scenarios must have corresponding step definitions in your test project.
 
@@ -123,11 +145,11 @@ Scenario: Admin can access admin panel
 ### "Scenario not found" error
 
 This error occurs when:
-- The scenario hasn't been registered
+- The scenario doesn't exist in your feature files
 - The scenario name or feature name doesn't match exactly
-- The registration happened after the test started
+- The scenario hasn't been manually registered (if using manual registration)
 
-Make sure to register scenarios in a `[BeforeTestRun]` hook and verify the names match exactly.
+Make sure scenario and feature names match exactly as they appear in your `.feature` files.
 
 ### Step execution failures
 

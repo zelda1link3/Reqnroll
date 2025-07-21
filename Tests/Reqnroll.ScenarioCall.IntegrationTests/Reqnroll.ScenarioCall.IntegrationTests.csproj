@@ -19,6 +19,11 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Reqnroll\Reqnroll.csproj" />
     <ProjectReference Include="..\..\Plugins\Reqnroll.ScenarioCall.ReqnrollPlugin\Reqnroll.ScenarioCall.ReqnrollPlugin.csproj" />
+    <ProjectReference Include="..\..\Reqnroll.Tools.MsBuild.Generation\Reqnroll.Tools.MsBuild.Generation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ReqnrollFeatureFiles Include="Features\**\*.feature" />
   </ItemGroup>
 
 </Project>

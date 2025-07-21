@@ -8,20 +8,28 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
     public class ScenarioCallService : IScenarioCallService
     {
         private readonly ITestExecutionEngine _testExecutionEngine;
+        private readonly IScenarioDiscoveryService _discoveryService;
 
-        public ScenarioCallService(ITestExecutionEngine testExecutionEngine)
+        public ScenarioCallService(ITestExecutionEngine testExecutionEngine, IScenarioDiscoveryService discoveryService = null)
         {
             _testExecutionEngine = testExecutionEngine;
+            _discoveryService = discoveryService ?? new ScenarioDiscoveryService();
         }
 
         public async Task CallScenarioAsync(string scenarioName, string featureName)
         {
-            // First try to find in global registry
-            var scenarioDefinition = GlobalScenarioRegistry.Find(scenarioName, featureName);
+            // First try to find using discovery service
+            var scenarioDefinition = _discoveryService.FindScenario(scenarioName, featureName);
+            
+            // Fallback to global registry for manually registered scenarios
+            if (scenarioDefinition == null)
+            {
+                scenarioDefinition = GlobalScenarioRegistry.Find(scenarioName, featureName);
+            }
             
             if (scenarioDefinition == null)
             {
-                throw new ReqnrollException($"Scenario '{scenarioName}' from feature '{featureName}' not found. Make sure to register the scenario using ScenarioDiscoveryService.RegisterScenarioGlobally() in your test setup.");
+                throw new ReqnrollException($"Scenario '{scenarioName}' from feature '{featureName}' not found. The scenario should be automatically discovered from generated Reqnroll code or manually registered using ScenarioRegistry.Register().");
             }
 
             // Execute each step of the found scenario

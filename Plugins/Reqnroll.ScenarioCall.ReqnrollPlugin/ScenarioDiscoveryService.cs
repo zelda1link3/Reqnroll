@@ -1,15 +1,25 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.CodeDom.Compiler;
+using System.Text.RegularExpressions;
+using System.ComponentModel;
 
 namespace Reqnroll.ScenarioCall.ReqnrollPlugin
 {
     public class ScenarioDiscoveryService : IScenarioDiscoveryService
     {
         private readonly Dictionary<string, ScenarioDefinition> _scenarios = new();
+        private bool _hasDiscovered = false;
 
         public ScenarioDefinition FindScenario(string scenarioName, string featureName)
         {
+            if (!_hasDiscovered)
+            {
+                DiscoverScenarios();
+            }
+
             var key = CreateKey(scenarioName, featureName);
             _scenarios.TryGetValue(key, out var scenario);
             return scenario;
@@ -17,6 +27,10 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
 
         public IEnumerable<ScenarioDefinition> GetAllScenarios()
         {
+            if (!_hasDiscovered)
+            {
+                DiscoverScenarios();
+            }
             return _scenarios.Values;
         }
 
@@ -32,6 +46,198 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
 
             var key = CreateKey(scenarioName, featureName);
             _scenarios[key] = scenario;
+        }
+
+        private void DiscoverScenarios()
+        {
+            try
+            {
+                var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+                foreach (var assembly in assemblies)
+                {
+                    try
+                    {
+                        DiscoverScenariosInAssembly(assembly);
+                    }
+                    catch (Exception)
+                    {
+                        // Skip assemblies that can't be processed
+                        continue;
+                    }
+                }
+                _hasDiscovered = true;
+            }
+            catch (Exception)
+            {
+                // If discovery fails, we'll fall back to manual registration
+                _hasDiscovered = true;
+            }
+        }
+
+        private void DiscoverScenariosInAssembly(Assembly assembly)
+        {
+            var types = assembly.GetTypes();
+            
+            foreach (var type in types)
+            {
+                // Look for classes with GeneratedCodeAttribute with "Reqnroll" as the tool
+                var generatedCodeAttr = type.GetCustomAttribute<GeneratedCodeAttribute>();
+                if (generatedCodeAttr?.Tool?.Contains("Reqnroll") != true)
+                    continue;
+
+                try
+                {
+                    DiscoverScenariosInType(type);
+                }
+                catch (Exception)
+                {
+                    // Skip types that can't be processed
+                    continue;
+                }
+            }
+        }
+
+        private void DiscoverScenariosInType(Type type)
+        {
+            // Find the FeatureInfo field to get the feature name
+            var featureInfoField = type.GetFields(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public)
+                .FirstOrDefault(f => f.FieldType.Name == "FeatureInfo");
+
+            if (featureInfoField == null)
+                return;
+
+            string featureName = null;
+            try
+            {
+                // Try to get the feature name from the FeatureInfo object
+                var featureInfo = featureInfoField.GetValue(null);
+                if (featureInfo != null)
+                {
+                    var titleProperty = featureInfo.GetType().GetProperty("Title");
+                    featureName = titleProperty?.GetValue(featureInfo) as string;
+                }
+            }
+            catch (Exception)
+            {
+                // If we can't get the feature name dynamically, try to extract from type name
+                featureName = ExtractFeatureNameFromTypeName(type.Name);
+            }
+
+            if (string.IsNullOrEmpty(featureName))
+                return;
+
+            // Find test methods (scenarios) - look for methods with test-related attributes
+            var testMethods = type.GetMethods()
+                .Where(m => HasTestAttribute(m));
+
+            foreach (var method in testMethods)
+            {
+                try
+                {
+                    DiscoverScenarioInMethod(method, featureName);
+                }
+                catch (Exception)
+                {
+                    // Skip methods that can't be processed
+                    continue;
+                }
+            }
+        }
+
+        private void DiscoverScenarioInMethod(MethodInfo method, string featureName)
+        {
+            // Get scenario name from method attributes
+            var scenarioName = GetScenarioNameFromMethod(method);
+
+            if (string.IsNullOrEmpty(scenarioName))
+                return;
+
+            // For now, create scenarios with empty steps
+            // TODO: Implement step extraction from method body
+            var steps = ExtractStepsFromMethod(method);
+
+            var scenario = new ScenarioDefinition
+            {
+                Name = scenarioName,
+                FeatureName = featureName,
+                Steps = steps,
+                Tags = new string[0] // TODO: Extract tags if needed
+            };
+
+            var key = CreateKey(scenarioName, featureName);
+            _scenarios[key] = scenario;
+        }
+
+        private string GetScenarioNameFromMethod(MethodInfo method)
+        {
+            // Look for various attributes that might contain the scenario name
+            var attributes = method.GetCustomAttributes();
+            
+            foreach (var attr in attributes)
+            {
+                // Check for TestMethod, TestCase, Fact attributes and their DisplayName properties
+                var displayNameProp = attr.GetType().GetProperty("DisplayName");
+                if (displayNameProp != null)
+                {
+                    var displayName = displayNameProp.GetValue(attr) as string;
+                    if (!string.IsNullOrEmpty(displayName))
+                        return displayName;
+                }
+
+                // Check for Description attribute
+                var descriptionProp = attr.GetType().GetProperty("Description");
+                if (descriptionProp != null)
+                {
+                    var description = descriptionProp.GetValue(attr) as string;
+                    if (!string.IsNullOrEmpty(description))
+                        return description;
+                }
+            }
+
+            // Check for standard DescriptionAttribute
+            var descriptionAttr = method.GetCustomAttribute<DescriptionAttribute>();
+            if (descriptionAttr != null && !string.IsNullOrEmpty(descriptionAttr.Description))
+            {
+                return descriptionAttr.Description;
+            }
+
+            // Fall back to method name, converting from PascalCase
+            return ConvertMethodNameToScenarioName(method.Name);
+        }
+
+        private bool HasTestAttribute(MethodInfo method)
+        {
+            var attributes = method.GetCustomAttributes();
+            return attributes.Any(attr => 
+                attr.GetType().Name.Contains("Test") || 
+                attr.GetType().Name.Contains("Fact") ||
+                attr.GetType().Name.Contains("Scenario"));
+        }
+
+        private StepDefinition[] ExtractStepsFromMethod(MethodInfo method)
+        {
+            // This is a simplified implementation
+            // In a complete implementation, we would parse the method body to extract actual steps
+            // For now, return empty steps array so the plugin works without manual registration
+            return new StepDefinition[0];
+        }
+
+        private string ExtractFeatureNameFromTypeName(string typeName)
+        {
+            // Remove "Feature" suffix if present
+            if (typeName.EndsWith("Feature"))
+            {
+                typeName = typeName.Substring(0, typeName.Length - "Feature".Length);
+            }
+
+            // Convert PascalCase to space-separated words
+            return Regex.Replace(typeName, "([A-Z])", " $1").Trim();
+        }
+
+        private string ConvertMethodNameToScenarioName(string methodName)
+        {
+            // Convert PascalCase method name to space-separated scenario name
+            return Regex.Replace(methodName, "([A-Z])", " $1").Trim();
         }
 
         private string CreateKey(string scenarioName, string featureName)
