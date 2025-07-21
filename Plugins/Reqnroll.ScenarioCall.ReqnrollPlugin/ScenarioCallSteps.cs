@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Reqnroll.Infrastructure;
 
 namespace Reqnroll.ScenarioCall.ReqnrollPlugin
 {
@@ -9,11 +10,11 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
         private readonly ITestRunner _testRunner;
         private readonly ScenarioContext _scenarioContext;
 
-        public ScenarioCallSteps(ITestRunner testRunner, ScenarioContext scenarioContext)
+        public ScenarioCallSteps(ITestRunner testRunner, ScenarioContext scenarioContext, ITestExecutionEngine testExecutionEngine)
         {
             _testRunner = testRunner;
             _scenarioContext = scenarioContext;
-            _scenarioCallService = new ScenarioCallService(null, testRunner, scenarioContext);
+            _scenarioCallService = new ScenarioCallService(testExecutionEngine, testRunner, scenarioContext);
         }
 
         [Given(@"I call scenario ""([^""]*)"" from feature ""([^""]*)""")]

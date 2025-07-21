@@ -60,37 +60,179 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
         {
             try
             {
-                // Create an instance of the target feature class
-                var targetFeatureInstance = Activator.CreateInstance(scenarioDefinition.TestClass);
+                // The issue is that directly calling test methods bypasses Reqnroll's context management
+                // Let's try to parse the feature file and extract the actual steps instead
+                var featureFileSteps = TryParseFeatureFileForScenario(scenarioDefinition.Name, scenarioDefinition.FeatureName);
                 
-                // Try to set the testRunner field
-                var testRunnerField = scenarioDefinition.TestClass.GetField("testRunner", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-                if (testRunnerField != null)
+                if (featureFileSteps != null && featureFileSteps.Any())
                 {
-                    testRunnerField.SetValue(targetFeatureInstance, _testRunner);
-                }
-                
-                // Try to set the _testContext field if it exists
-                var testContextField = scenarioDefinition.TestClass.GetField("_testContext", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-                if (testContextField != null)
-                {
-                    // Get the current test context from ScenarioContext if available
-                    var currentTestContext = GetCurrentTestContext();
-                    if (currentTestContext != null)
+                    // Execute the steps we found in the feature file
+                    foreach (var step in featureFileSteps)
                     {
-                        testContextField.SetValue(targetFeatureInstance, currentTestContext);
+                        await ExecuteStepAsync(step);
                     }
+                    return;
                 }
                 
-                // Call the scenario method directly
-                var task = (Task)scenarioDefinition.TestMethod.Invoke(targetFeatureInstance, null);
-                await task;
+                // Fallback: if we can't find the feature file, try direct method invocation with better context handling
+                await InvokeTestMethodWithContextManagement(scenarioDefinition);
             }
             catch (Exception ex)
             {
                 // Unwrap target invocation exceptions if needed
                 var actualException = ex.InnerException ?? ex;
                 throw new ReqnrollException($"Error executing scenario '{scenarioDefinition.Name}' from feature '{scenarioDefinition.FeatureName}': {actualException.Message}", actualException);
+            }
+        }
+        
+        private List<StepDefinition> TryParseFeatureFileForScenario(string scenarioName, string featureName)
+        {
+            try
+            {
+                // Look for feature files in common locations
+                var possiblePaths = new[]
+                {
+                    "Features",
+                    ".",
+                    "**/*.feature"
+                };
+                
+                // Try to find feature files
+                var currentDirectory = Environment.CurrentDirectory;
+                var featureFiles = new List<string>();
+                
+                // Search for .feature files
+                if (System.IO.Directory.Exists(System.IO.Path.Combine(currentDirectory, "Features")))
+                {
+                    featureFiles.AddRange(System.IO.Directory.GetFiles(
+                        System.IO.Path.Combine(currentDirectory, "Features"), 
+                        "*.feature", 
+                        System.IO.SearchOption.AllDirectories));
+                }
+                
+                // Also search in current directory and subdirectories
+                featureFiles.AddRange(System.IO.Directory.GetFiles(
+                    currentDirectory, 
+                    "*.feature", 
+                    System.IO.SearchOption.AllDirectories));
+                
+                foreach (var featureFile in featureFiles.Distinct())
+                {
+                    try
+                    {
+                        var content = System.IO.File.ReadAllText(featureFile);
+                        var steps = ParseScenarioFromFeatureContent(content, scenarioName, featureName);
+                        if (steps != null && steps.Any())
+                        {
+                            return steps;
+                        }
+                    }
+                    catch
+                    {
+                        // Continue to next file
+                    }
+                }
+            }
+            catch
+            {
+                // If we can't parse feature files, we'll fall back to direct method invocation
+            }
+            
+            return null;
+        }
+        
+        private List<StepDefinition> ParseScenarioFromFeatureContent(string content, string scenarioName, string featureName)
+        {
+            var lines = content.Split('\n');
+            var steps = new List<StepDefinition>();
+            bool inTargetScenario = false;
+            bool inFeature = false;
+            string currentFeatureName = null;
+            
+            foreach (var line in lines)
+            {
+                var trimmedLine = line.Trim();
+                
+                // Check for feature declaration
+                if (trimmedLine.StartsWith("Feature:"))
+                {
+                    currentFeatureName = trimmedLine.Substring(8).Trim();
+                    inFeature = string.Equals(currentFeatureName, featureName, StringComparison.OrdinalIgnoreCase);
+                    continue;
+                }
+                
+                // Skip if we're not in the right feature
+                if (!inFeature)
+                    continue;
+                
+                // Check for scenario declaration
+                if (trimmedLine.StartsWith("Scenario:"))
+                {
+                    var scenarioTitle = trimmedLine.Substring("Scenario:".Length).Trim();
+                    inTargetScenario = string.Equals(scenarioTitle, scenarioName, StringComparison.OrdinalIgnoreCase);
+                    continue;
+                }
+                
+                // If we hit another scenario or feature, stop
+                if ((trimmedLine.StartsWith("Scenario:") || trimmedLine.StartsWith("Feature:")) && inTargetScenario)
+                {
+                    break;
+                }
+                
+                // Parse steps within the target scenario
+                if (inTargetScenario)
+                {
+                    if (trimmedLine.StartsWith("Given ") || trimmedLine.StartsWith("When ") ||
+                        trimmedLine.StartsWith("Then ") || trimmedLine.StartsWith("And ") ||
+                        trimmedLine.StartsWith("But "))
+                    {
+                        var parts = trimmedLine.Split(new char[] { ' ' }, 2);
+                        if (parts.Length >= 2)
+                        {
+                            steps.Add(new StepDefinition
+                            {
+                                Keyword = parts[0],
+                                Text = parts[1]
+                            });
+                        }
+                    }
+                }
+            }
+            
+            return steps.Any() ? steps : null;
+        }
+        
+        private async Task InvokeTestMethodWithContextManagement(ScenarioDefinition scenarioDefinition)
+        {
+            // This is the last resort - try to call the method directly but with better error handling
+            // The issue is likely that we need to ensure proper test context initialization
+            
+            // Create an instance of the target feature class
+            var targetFeatureInstance = Activator.CreateInstance(scenarioDefinition.TestClass);
+            
+            // Try to set the testRunner field with our current testRunner
+            var testRunnerField = scenarioDefinition.TestClass.GetField("testRunner", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            if (testRunnerField != null)
+            {
+                testRunnerField.SetValue(targetFeatureInstance, _testRunner);
+            }
+            
+            // Try to set the _testContext field if it exists
+            var testContextField = scenarioDefinition.TestClass.GetField("_testContext", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+            if (testContextField != null)
+            {
+                var currentTestContext = GetCurrentTestContext();
+                if (currentTestContext != null)
+                {
+                    testContextField.SetValue(targetFeatureInstance, currentTestContext);
+                }
+            }
+            
+            // Check if the test method is async
+            var task = scenarioDefinition.TestMethod.Invoke(targetFeatureInstance, null);
+            if (task is Task asyncTask)
+            {
+                await asyncTask;
             }
         }
         
