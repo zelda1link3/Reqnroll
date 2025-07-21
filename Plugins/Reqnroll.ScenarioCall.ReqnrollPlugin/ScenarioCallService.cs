@@ -74,8 +74,9 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
                     return;
                 }
                 
-                // Fallback: if we can't find the feature file, try direct method invocation with better context handling
-                await InvokeTestMethodWithContextManagement(scenarioDefinition);
+                // Fallback: Log that we couldn't parse the feature file and skip execution
+                // This is better than crashing with StepContext null reference
+                throw new ReqnrollException($"Cannot execute scenario '{scenarioDefinition.Name}' from feature '{scenarioDefinition.FeatureName}': Feature file not found or could not be parsed. The scenario was discovered but its steps could not be determined.");
             }
             catch (Exception ex)
             {
@@ -201,97 +202,35 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
             
             return steps.Any() ? steps : null;
         }
-        
-        private async Task InvokeTestMethodWithContextManagement(ScenarioDefinition scenarioDefinition)
-        {
-            // This is the last resort - try to call the method directly but with better error handling
-            // The issue is likely that we need to ensure proper test context initialization
-            
-            // Create an instance of the target feature class
-            var targetFeatureInstance = Activator.CreateInstance(scenarioDefinition.TestClass);
-            
-            // Try to set the testRunner field with our current testRunner
-            var testRunnerField = scenarioDefinition.TestClass.GetField("testRunner", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-            if (testRunnerField != null)
-            {
-                testRunnerField.SetValue(targetFeatureInstance, _testRunner);
-            }
-            
-            // Try to set the _testContext field if it exists
-            var testContextField = scenarioDefinition.TestClass.GetField("_testContext", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-            if (testContextField != null)
-            {
-                var currentTestContext = GetCurrentTestContext();
-                if (currentTestContext != null)
-                {
-                    testContextField.SetValue(targetFeatureInstance, currentTestContext);
-                }
-            }
-            
-            // Check if the test method is async
-            var task = scenarioDefinition.TestMethod.Invoke(targetFeatureInstance, null);
-            if (task is Task asyncTask)
-            {
-                await asyncTask;
-            }
-        }
+
         
         private object GetCurrentTestContext()
         {
-            try
-            {
-                // Try to get the TestContext from ScenarioContext
-                if (_scenarioContext?.ScenarioContainer != null)
-                {
-                    // Try to find any registered TestContext-like object
-                    // This is a generic approach that should work with different test frameworks
-                    
-                    // First try to find a type with "TestContext" in the name
-                    var allRegistrations = _scenarioContext.ScenarioContainer.GetType()
-                        .GetFields(BindingFlags.NonPublic | BindingFlags.Instance)
-                        .Where(f => f.Name.Contains("registrations") || f.Name.Contains("objects"))
-                        .FirstOrDefault();
-                        
-                    if (allRegistrations != null)
-                    {
-                        var registrationsValue = allRegistrations.GetValue(_scenarioContext.ScenarioContainer);
-                        // This is getting complex - let's just try the common pattern
-                    }
-                    
-                    // Try common test context type names
-                    var assembly = AppDomain.CurrentDomain.GetAssemblies()
-                        .FirstOrDefault(a => a.FullName.Contains("Microsoft.VisualStudio.TestTools.UnitTesting"));
-                        
-                    if (assembly != null)
-                    {
-                        var testContextType = assembly.GetType("Microsoft.VisualStudio.TestTools.UnitTesting.TestContext");
-                        if (testContextType != null)
-                        {
-                            try
-                            {
-                                return _scenarioContext.ScenarioContainer.Resolve(testContextType);
-                            }
-                            catch
-                            {
-                                // Not registered
-                            }
-                        }
-                    }
-                }
-            }
-            catch
-            {
-                // If we can't get the test context, that's OK - the scenario might still work
-            }
-            
+            // This method was causing issues with context management
+            // For now, return null to avoid complications
             return null;
         }
 
         private async Task ExecuteStepAsync(StepDefinition step)
         {
+            // Instead of trying to manually manage StepContext, let's execute the step 
+            // through the TestExecutionEngine directly but catch and handle the StepContext issue
             var stepKeyword = GetStepDefinitionKeyword(step.Keyword);
             
-            await _testExecutionEngine.StepAsync(stepKeyword, step.Keyword, step.Text, step.MultilineText, step.Table);
+            try
+            {
+                await _testExecutionEngine.StepAsync(stepKeyword, step.Keyword, step.Text, step.MultilineText, step.Table);
+            }
+            catch (NullReferenceException ex) when (ex.StackTrace?.Contains("UpdateStatusOnStepFailure") == true)
+            {
+                // This is the StepContext null issue - let's wrap and provide a better error message
+                throw new ReqnrollException($"Error executing step '{step.Keyword} {step.Text}' in called scenario. This may be caused by missing step definitions or context issues. Inner error: {ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                // For other exceptions, wrap them with context
+                throw new ReqnrollException($"Error executing step '{step.Keyword} {step.Text}': {ex.Message}", ex);
+            }
         }
 
         private StepDefinitionKeyword GetStepDefinitionKeyword(string keyword)
