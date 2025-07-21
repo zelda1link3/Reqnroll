@@ -6,10 +6,14 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
     public class ScenarioCallSteps
     {
         private readonly IScenarioCallService _scenarioCallService;
+        private readonly ITestRunner _testRunner;
+        private readonly ScenarioContext _scenarioContext;
 
-        public ScenarioCallSteps(IScenarioCallService scenarioCallService)
+        public ScenarioCallSteps(ITestRunner testRunner, ScenarioContext scenarioContext)
         {
-            _scenarioCallService = scenarioCallService;
+            _testRunner = testRunner;
+            _scenarioContext = scenarioContext;
+            _scenarioCallService = new ScenarioCallService(null, testRunner, scenarioContext);
         }
 
         [Given(@"I call scenario ""([^""]*)"" from feature ""([^""]*)""")]

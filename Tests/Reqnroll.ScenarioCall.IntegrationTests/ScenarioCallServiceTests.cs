@@ -41,7 +41,8 @@ namespace Reqnroll.ScenarioCall.IntegrationTests
         {
             // Arrange
             var mockEngine = new Mock<ITestExecutionEngine>();
-            var service = new ScenarioCallService(mockEngine.Object);
+            var mockTestRunner = new Mock<ITestRunner>();
+            var service = new ScenarioCallService(mockEngine.Object, mockTestRunner.Object, null);
 
             // Act & Assert
             var exception = await Assert.ThrowsAsync<ReqnrollException>(
@@ -55,7 +56,8 @@ namespace Reqnroll.ScenarioCall.IntegrationTests
         {
             // Arrange
             var mockEngine = new Mock<ITestExecutionEngine>();
-            var service = new ScenarioCallService(mockEngine.Object);
+            var mockTestRunner = new Mock<ITestRunner>();
+            var service = new ScenarioCallService(mockEngine.Object, mockTestRunner.Object, null);
             
             var scenarioName = "Execution Test Scenario";
             var featureName = "Execution Test Feature";

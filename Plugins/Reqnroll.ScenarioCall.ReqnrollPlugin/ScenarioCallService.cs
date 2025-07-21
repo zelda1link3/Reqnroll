@@ -14,10 +14,14 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
     {
         private readonly ITestExecutionEngine _testExecutionEngine;
         private readonly IScenarioDiscoveryService _discoveryService;
+        private readonly ITestRunner _testRunner;
+        private readonly ScenarioContext _scenarioContext;
 
-        public ScenarioCallService(ITestExecutionEngine testExecutionEngine, IScenarioDiscoveryService discoveryService = null)
+        public ScenarioCallService(ITestExecutionEngine testExecutionEngine, ITestRunner testRunner, ScenarioContext scenarioContext, IScenarioDiscoveryService discoveryService = null)
         {
             _testExecutionEngine = testExecutionEngine;
+            _testRunner = testRunner;
+            _scenarioContext = scenarioContext;
             _discoveryService = discoveryService ?? new ScenarioDiscoveryService();
         }
 
@@ -56,21 +60,31 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
         {
             try
             {
-                // Extract steps from the generated method body and execute them through Reqnroll infrastructure
-                var steps = ExtractStepsFromMethod(scenarioDefinition.TestMethod);
+                // Create an instance of the target feature class
+                var targetFeatureInstance = Activator.CreateInstance(scenarioDefinition.TestClass);
                 
-                if (steps.Any())
+                // Try to set the testRunner field
+                var testRunnerField = scenarioDefinition.TestClass.GetField("testRunner", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                if (testRunnerField != null)
                 {
-                    // Execute the extracted steps
-                    foreach (var step in steps)
+                    testRunnerField.SetValue(targetFeatureInstance, _testRunner);
+                }
+                
+                // Try to set the _testContext field if it exists
+                var testContextField = scenarioDefinition.TestClass.GetField("_testContext", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+                if (testContextField != null)
+                {
+                    // Get the current test context from ScenarioContext if available
+                    var currentTestContext = GetCurrentTestContext();
+                    if (currentTestContext != null)
                     {
-                        await ExecuteStepAsync(step);
+                        testContextField.SetValue(targetFeatureInstance, currentTestContext);
                     }
                 }
-                else
-                {
-                    throw new ReqnrollException($"No steps found in scenario '{scenarioDefinition.Name}' from feature '{scenarioDefinition.FeatureName}'.");
-                }
+                
+                // Call the scenario method directly
+                var task = (Task)scenarioDefinition.TestMethod.Invoke(targetFeatureInstance, null);
+                await task;
             }
             catch (Exception ex)
             {
@@ -79,188 +93,63 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
                 throw new ReqnrollException($"Error executing scenario '{scenarioDefinition.Name}' from feature '{scenarioDefinition.FeatureName}': {actualException.Message}", actualException);
             }
         }
+        
+        private object GetCurrentTestContext()
+        {
+            try
+            {
+                // Try to get the TestContext from ScenarioContext
+                if (_scenarioContext?.ScenarioContainer != null)
+                {
+                    // Try to find any registered TestContext-like object
+                    // This is a generic approach that should work with different test frameworks
+                    
+                    // First try to find a type with "TestContext" in the name
+                    var allRegistrations = _scenarioContext.ScenarioContainer.GetType()
+                        .GetFields(BindingFlags.NonPublic | BindingFlags.Instance)
+                        .Where(f => f.Name.Contains("registrations") || f.Name.Contains("objects"))
+                        .FirstOrDefault();
+                        
+                    if (allRegistrations != null)
+                    {
+                        var registrationsValue = allRegistrations.GetValue(_scenarioContext.ScenarioContainer);
+                        // This is getting complex - let's just try the common pattern
+                    }
+                    
+                    // Try common test context type names
+                    var assembly = AppDomain.CurrentDomain.GetAssemblies()
+                        .FirstOrDefault(a => a.FullName.Contains("Microsoft.VisualStudio.TestTools.UnitTesting"));
+                        
+                    if (assembly != null)
+                    {
+                        var testContextType = assembly.GetType("Microsoft.VisualStudio.TestTools.UnitTesting.TestContext");
+                        if (testContextType != null)
+                        {
+                            try
+                            {
+                                return _scenarioContext.ScenarioContainer.Resolve(testContextType);
+                            }
+                            catch
+                            {
+                                // Not registered
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // If we can't get the test context, that's OK - the scenario might still work
+            }
+            
+            return null;
+        }
 
         private async Task ExecuteStepAsync(StepDefinition step)
         {
             var stepKeyword = GetStepDefinitionKeyword(step.Keyword);
             
             await _testExecutionEngine.StepAsync(stepKeyword, step.Keyword, step.Text, step.MultilineText, step.Table);
-        }
-
-        private StepDefinition[] ExtractStepsFromMethod(MethodInfo method)
-        {
-            var steps = new List<StepDefinition>();
-            
-            try
-            {
-                // Get the method body
-                var methodBody = method.GetMethodBody();
-                if (methodBody == null)
-                    return steps.ToArray();
-
-                // Get the IL bytes
-                var il = methodBody.GetILAsByteArray();
-                if (il == null || il.Length == 0)
-                    return steps.ToArray();
-
-                // This is a simplified IL parsing approach
-                // Look for string literals that match step patterns
-                var strings = ExtractStringLiteralsFromIL(method);
-                
-                foreach (var str in strings)
-                {
-                    // Check if this string looks like a step
-                    if (IsStepText(str))
-                    {
-                        var stepKeyword = InferStepKeyword(str, steps.Count);
-                        steps.Add(new StepDefinition
-                        {
-                            Keyword = stepKeyword,
-                            Text = str,
-                            Table = null,
-                            MultilineText = null
-                        });
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // If IL parsing fails, return empty array
-                // This will fall back to manual registration
-            }
-
-            return steps.ToArray();
-        }
-
-        private List<string> ExtractStringLiteralsFromIL(MethodInfo method)
-        {
-            var strings = new List<string>();
-            
-            try
-            {
-                // Use reflection to get string literals from the method
-                // This is a simplified approach - we'll look at the method's module's metadata
-                var module = method.Module;
-                var methodToken = method.MetadataToken;
-                
-                // Get all string literals used in the method
-                // This is a basic approach that may not catch all cases
-                var methodBody = method.GetMethodBody();
-                if (methodBody != null)
-                {
-                    var il = methodBody.GetILAsByteArray();
-                    
-                    // Parse IL looking for ldstr instructions (load string)
-                    for (int i = 0; i < il.Length - 4; i++)
-                    {
-                        // ldstr opcode is 0x72
-                        if (il[i] == 0x72)
-                        {
-                            // Get the token (4 bytes little endian)
-                            int token = BitConverter.ToInt32(il, i + 1);
-                            
-                            try
-                            {
-                                // Resolve the string token
-                                var str = module.ResolveString(token);
-                                if (!string.IsNullOrEmpty(str))
-                                {
-                                    strings.Add(str);
-                                }
-                            }
-                            catch (Exception)
-                            {
-                                // Skip invalid tokens
-                                continue;
-                            }
-                            
-                            i += 4; // Skip the token bytes
-                        }
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                // If anything fails, return empty list
-            }
-            
-            return strings;
-        }
-
-        private bool IsStepText(string text)
-        {
-            // Check if the string looks like a Gherkin step
-            // Filter out common non-step strings
-            if (string.IsNullOrEmpty(text))
-                return false;
-                
-            // Skip very short strings
-            if (text.Length < 3)
-                return false;
-                
-            // Skip common test framework strings
-            var skipPatterns = new[]
-            {
-                "Given ", "When ", "Then ", "And ", "But ",  // These are step keywords, but we want the full text
-                "TestMethod", "Description", "Feature", "Scenario",
-                "#line", "hidden"
-            };
-            
-            // Check if it's likely a step by looking for common patterns
-            var stepPatterns = new[]
-            {
-                @"^(the|a|an)\s+\w+",
-                @"\w+\s+(is|are|should|can|will|has|have)",
-                @"(I|user|system)\s+\w+",
-                @"\w+\s+(with|for|in|on|at|by)\s+",
-                @"(login|log in|register|click|enter|submit|navigate)",
-                @"(successful|failed|valid|invalid|correct|incorrect)"
-            };
-            
-            // Must be a reasonable length for a step
-            if (text.Length > 200)
-                return false;
-                
-            // Should contain letters
-            if (!Regex.IsMatch(text, @"[a-zA-Z]"))
-                return false;
-                
-            // Check if it matches step patterns
-            foreach (var pattern in stepPatterns)
-            {
-                if (Regex.IsMatch(text, pattern, RegexOptions.IgnoreCase))
-                    return true;
-            }
-            
-            // If it contains quotes, it might be a step with parameters
-            if (text.Contains("\"") && text.Count(c => c == '"') >= 2)
-                return true;
-                
-            return false;
-        }
-
-        private string InferStepKeyword(string stepText, int stepIndex)
-        {
-            // Try to infer the step keyword based on content and position
-            var lowerText = stepText.ToLowerInvariant();
-            
-            // Check for explicit keywords in the text
-            if (lowerText.Contains("given") || lowerText.Contains("there is") || lowerText.Contains("there are"))
-                return "Given";
-            if (lowerText.Contains("when") || lowerText.Contains("the user") || lowerText.Contains("i "))
-                return "When";
-            if (lowerText.Contains("then") || lowerText.Contains("should") || lowerText.Contains("must"))
-                return "Then";
-                
-            // Use position-based inference
-            if (stepIndex == 0)
-                return "Given";
-            if (stepIndex == 1)
-                return "When";
-            if (stepIndex >= 2)
-                return "Then";
-                
-            return "And";
         }
 
         private StepDefinitionKeyword GetStepDefinitionKeyword(string keyword)
