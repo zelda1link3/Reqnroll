@@ -152,16 +152,15 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
             if (string.IsNullOrEmpty(scenarioName))
                 return;
 
-            // For now, create scenarios with empty steps
-            // TODO: Implement step extraction from method body
-            var steps = ExtractStepsFromMethod(method);
-
+            // Store the method info and class for direct invocation
             var scenario = new ScenarioDefinition
             {
                 Name = scenarioName,
                 FeatureName = featureName,
-                Steps = steps,
-                Tags = new string[0] // TODO: Extract tags if needed
+                Steps = new StepDefinition[0], // Keep empty for compatibility, but we'll use TestMethod instead
+                Tags = new string[0], // TODO: Extract tags if needed
+                TestMethod = method,
+                TestClass = method.DeclaringType
             };
 
             var key = CreateKey(scenarioName, featureName);
@@ -170,20 +169,30 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
 
         private string GetScenarioNameFromMethod(MethodInfo method)
         {
-            // Look for various attributes that might contain the scenario name
-            var attributes = method.GetCustomAttributes();
+            // Look for TestMethodAttribute with the scenario name as constructor parameter
+            // In the generated code: [global::Microsoft.VisualStudio.TestTools.UnitTesting.TestMethodAttribute("User logs in with valid credentials")]
+            var customAttributes = method.GetCustomAttributesData();
             
+            foreach (var attrData in customAttributes)
+            {
+                if (attrData.AttributeType.Name.Contains("TestMethod"))
+                {
+                    // Check if there are constructor arguments
+                    if (attrData.ConstructorArguments.Count > 0)
+                    {
+                        var firstArg = attrData.ConstructorArguments[0];
+                        if (firstArg.ArgumentType == typeof(string) && firstArg.Value is string scenarioName)
+                        {
+                            return scenarioName;
+                        }
+                    }
+                }
+            }
+            
+            // Look for Description attribute as fallback
+            var attributes = method.GetCustomAttributes();
             foreach (var attr in attributes)
             {
-                // Check for TestMethod, TestCase, Fact attributes and their DisplayName properties
-                var displayNameProp = attr.GetType().GetProperty("DisplayName");
-                if (displayNameProp != null)
-                {
-                    var displayName = displayNameProp.GetValue(attr) as string;
-                    if (!string.IsNullOrEmpty(displayName))
-                        return displayName;
-                }
-
                 // Check for Description attribute
                 var descriptionProp = attr.GetType().GetProperty("Description");
                 if (descriptionProp != null)
@@ -214,13 +223,7 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
                 attr.GetType().Name.Contains("Scenario"));
         }
 
-        private StepDefinition[] ExtractStepsFromMethod(MethodInfo method)
-        {
-            // This is a simplified implementation
-            // In a complete implementation, we would parse the method body to extract actual steps
-            // For now, return empty steps array so the plugin works without manual registration
-            return new StepDefinition[0];
-        }
+
 
         private string ExtractFeatureNameFromTypeName(string typeName)
         {

@@ -32,10 +32,48 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
                 throw new ReqnrollException($"Scenario '{scenarioName}' from feature '{featureName}' not found. The scenario should be automatically discovered from generated Reqnroll code or manually registered using ScenarioRegistry.Register().");
             }
 
-            // Execute each step of the found scenario
-            foreach (var step in scenarioDefinition.Steps)
+            // If we have a TestMethod from discovery, invoke it directly
+            if (scenarioDefinition.TestMethod != null && scenarioDefinition.TestClass != null)
             {
-                await ExecuteStepAsync(step);
+                await InvokeTestMethodDirectly(scenarioDefinition);
+            }
+            else
+            {
+                // Fallback to executing individual steps for manually registered scenarios
+                foreach (var step in scenarioDefinition.Steps)
+                {
+                    await ExecuteStepAsync(step);
+                }
+            }
+        }
+
+        private async Task InvokeTestMethodDirectly(ScenarioDefinition scenarioDefinition)
+        {
+            try
+            {
+                // Create an instance of the test class
+                var testInstance = Activator.CreateInstance(scenarioDefinition.TestClass);
+                
+                // Check if the method is async
+                if (scenarioDefinition.TestMethod.ReturnType == typeof(Task) || 
+                    (scenarioDefinition.TestMethod.ReturnType.IsGenericType && 
+                     scenarioDefinition.TestMethod.ReturnType.GetGenericTypeDefinition() == typeof(Task<>)))
+                {
+                    // Invoke async method
+                    var task = (Task)scenarioDefinition.TestMethod.Invoke(testInstance, null);
+                    await task;
+                }
+                else
+                {
+                    // Invoke sync method
+                    scenarioDefinition.TestMethod.Invoke(testInstance, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Unwrap target invocation exceptions
+                var actualException = ex.InnerException ?? ex;
+                throw new ReqnrollException($"Error executing scenario '{scenarioDefinition.Name}' from feature '{scenarioDefinition.FeatureName}': {actualException.Message}", actualException);
             }
         }
 

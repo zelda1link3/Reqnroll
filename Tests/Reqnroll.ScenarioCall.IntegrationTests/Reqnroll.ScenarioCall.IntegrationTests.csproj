@@ -26,4 +26,6 @@
     <ReqnrollFeatureFiles Include="Features\**\*.feature" />
   </ItemGroup>
 
+  <Import Project="$(MSBuildExtensionsPath)\Reqnroll\Reqnroll.Tools.MsBuild.Generation.targets" Condition="Exists('$(MSBuildExtensionsPath)\Reqnroll\Reqnroll.Tools.MsBuild.Generation.targets')" />
+
 </Project>

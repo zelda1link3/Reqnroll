@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace Reqnroll.ScenarioCall.ReqnrollPlugin
 {
@@ -17,6 +18,16 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
         public string FeatureName { get; set; }
         public string[] Tags { get; set; }
         public StepDefinition[] Steps { get; set; }
+        
+        /// <summary>
+        /// The method info for the generated test method, when available from discovery
+        /// </summary>
+        public MethodInfo TestMethod { get; set; }
+        
+        /// <summary>
+        /// The type containing the test method, when available from discovery
+        /// </summary>
+        public Type TestClass { get; set; }
     }
 
     public class StepDefinition
