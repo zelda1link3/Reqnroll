@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <ReqnrollPlugin>Reqnroll.ScenarioCall.ReqnrollPlugin</ReqnrollPlugin>
+  </PropertyGroup>
+</Project>

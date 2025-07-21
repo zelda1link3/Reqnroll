@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.8.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Reqnroll\Reqnroll.csproj" />
+    <ProjectReference Include="..\..\Reqnroll.Tools.MsBuild.Generation\Reqnroll.Tools.MsBuild.Generation.csproj" />
+    <ProjectReference Include="..\..\Plugins\Reqnroll.ScenarioCall.ReqnrollPlugin\Reqnroll.ScenarioCall.ReqnrollPlugin.csproj" />
+    <ProjectReference Include="..\..\Plugins\Reqnroll.xUnit.ReqnrollPlugin\Reqnroll.xUnit.ReqnrollPlugin.csproj" />
+    <ProjectReference Include="..\..\Plugins\Reqnroll.xUnit.Generator.ReqnrollPlugin\Reqnroll.xUnit.Generator.ReqnrollPlugin.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ReqnrollGeneratorPlugins Include="$(MSBuildThisFileDirectory)..\..\Plugins\Reqnroll.xUnit.Generator.ReqnrollPlugin\bin\$(Configuration)\netstandard2.0\Reqnroll.xUnit.Generator.ReqnrollPlugin.dll" />
+  </ItemGroup>
+
+  <Import Project="..\..\Reqnroll.Tools.MsBuild.Generation\build\Reqnroll.Tools.MsBuild.Generation.targets" />
+  <Import Project="..\..\Plugins\Reqnroll.xUnit.Generator.ReqnrollPlugin\build\Reqnroll.xUnit.targets" />
+
+</Project>
