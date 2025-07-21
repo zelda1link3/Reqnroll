@@ -16,7 +16,6 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
         private void RuntimePluginEventsOnCustomizeTestThreadDependencies(object sender, CustomizeTestThreadDependenciesEventArgs e)
         {
             e.ObjectContainer.RegisterTypeAs<ScenarioCallService, IScenarioCallService>();
-            e.ObjectContainer.RegisterTypeAs<ScenarioDiscoveryService, IScenarioDiscoveryService>();
         }
     }
 }

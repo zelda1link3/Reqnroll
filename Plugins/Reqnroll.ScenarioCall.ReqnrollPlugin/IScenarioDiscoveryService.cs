@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Reqnroll.ScenarioCall.ReqnrollPlugin
 {
@@ -6,6 +8,7 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
     {
         ScenarioDefinition FindScenario(string scenarioName, string featureName);
         IEnumerable<ScenarioDefinition> GetAllScenarios();
+        void RegisterScenario(string scenarioName, string featureName, params StepDefinition[] steps);
     }
 
     public class ScenarioDefinition
