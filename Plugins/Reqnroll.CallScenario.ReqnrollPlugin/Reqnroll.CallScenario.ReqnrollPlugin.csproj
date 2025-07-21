@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Reqnroll\Reqnroll.csproj" />
+    <ProjectReference Include="..\..\Reqnroll.Parser\Reqnroll.Parser.csproj" />
   </ItemGroup>
 
 </Project>
