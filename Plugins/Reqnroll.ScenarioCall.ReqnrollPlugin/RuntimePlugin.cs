@@ -1,4 +1,5 @@
 using System.Reflection;
+using Reqnroll.Bindings;
 using Reqnroll.Infrastructure;
 using Reqnroll.Plugins;
 using Reqnroll.UnitTestProvider;
@@ -28,6 +29,16 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
         private void RuntimePluginEventsOnCustomizeTestThreadDependencies(object sender, CustomizeTestThreadDependenciesEventArgs e)
         {
             e.ObjectContainer.RegisterTypeAs<ScenarioDiscoveryService, IScenarioDiscoveryService>();
+            
+            // Register our custom context manager that handles nested scenario cleanup
+            // We need to wrap the original context manager
+            e.ObjectContainer.RegisterFactoryAs<IContextManager>(() =>
+            {
+                // Get the original context manager from the container
+                var originalContextManager = e.ObjectContainer.Resolve<ContextManager>();
+                return new ScenarioCallContextManager(originalContextManager);
+            });
+            
             // Note: ScenarioCallService is now instantiated directly in ScenarioCallSteps to get access to ITestRunner and ScenarioContext
         }
     }

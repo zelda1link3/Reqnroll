@@ -27,32 +27,43 @@ namespace Reqnroll.ScenarioCall.ReqnrollPlugin
 
         public async Task CallScenarioAsync(string scenarioName, string featureName)
         {
-            // First try to find using discovery service
-            var scenarioDefinition = _discoveryService.FindScenario(scenarioName, featureName);
+            // Mark that we're entering a nested scenario call
+            ScenarioCallContextManager.EnterNestedScenarioCall();
             
-            // Fallback to global registry for manually registered scenarios
-            if (scenarioDefinition == null)
+            try
             {
-                scenarioDefinition = GlobalScenarioRegistry.Find(scenarioName, featureName);
-            }
-            
-            if (scenarioDefinition == null)
-            {
-                throw new ReqnrollException($"Scenario '{scenarioName}' from feature '{featureName}' not found. The scenario should be automatically discovered from generated Reqnroll code or manually registered using ScenarioRegistry.Register().");
-            }
-
-            // If we have a TestMethod from discovery, invoke it directly
-            if (scenarioDefinition.TestMethod != null && scenarioDefinition.TestClass != null)
-            {
-                await InvokeTestMethodDirectly(scenarioDefinition);
-            }
-            else
-            {
-                // Fallback to executing individual steps for manually registered scenarios
-                foreach (var step in scenarioDefinition.Steps)
+                // First try to find using discovery service
+                var scenarioDefinition = _discoveryService.FindScenario(scenarioName, featureName);
+                
+                // Fallback to global registry for manually registered scenarios
+                if (scenarioDefinition == null)
                 {
-                    await ExecuteStepAsync(step);
+                    scenarioDefinition = GlobalScenarioRegistry.Find(scenarioName, featureName);
                 }
+                
+                if (scenarioDefinition == null)
+                {
+                    throw new ReqnrollException($"Scenario '{scenarioName}' from feature '{featureName}' not found. The scenario should be automatically discovered from generated Reqnroll code or manually registered using ScenarioRegistry.Register().");
+                }
+
+                // If we have a TestMethod from discovery, invoke it directly
+                if (scenarioDefinition.TestMethod != null && scenarioDefinition.TestClass != null)
+                {
+                    await InvokeTestMethodDirectly(scenarioDefinition);
+                }
+                else
+                {
+                    // Fallback to executing individual steps for manually registered scenarios
+                    foreach (var step in scenarioDefinition.Steps)
+                    {
+                        await ExecuteStepAsync(step);
+                    }
+                }
+            }
+            finally
+            {
+                // Always ensure we exit the nested scenario call, even if there's an exception
+                ScenarioCallContextManager.ExitNestedScenarioCall();
             }
         }
 
