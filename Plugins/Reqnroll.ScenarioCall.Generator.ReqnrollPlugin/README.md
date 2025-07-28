@@ -1,6 +1,6 @@
 # Reqnroll ScenarioCall Generator Plugin
 
-This generator plugin allows calling scenarios from other features during code generation by expanding the scenario calls inline.
+This generator plugin allows calling scenarios from other features during code generation by expanding the scenario calls inline. This approach is much simpler and more reliable than runtime scenario calling.
 
 ## How it Works
 
@@ -23,6 +23,34 @@ It will:
 - **Better performance**: No runtime lookup or execution overhead
 - **Simpler debugging**: Generated code shows actual steps being executed
 - **Leverages existing Reqnroll infrastructure**: Uses standard step execution
+- **Automatic discovery**: No manual registration required
+
+## Example
+
+### Before (Original feature file):
+```gherkin
+Feature: Order Processing
+    Scenario: Process order for logged in user
+        Given I call scenario "User logs in with valid credentials" from feature "Authentication"
+        When I add an item to cart
+        Then the order should be processed successfully
+```
+
+### After (Generated/Expanded):
+```gherkin  
+Feature: Order Processing
+    Scenario: Process order for logged in user
+        # Expanded from scenario call: "User logs in with valid credentials" from feature "Authentication"
+        Given there is a user registered with username "testuser" and password "testpass"
+        And the user is on the login page
+        When the user enters username "testuser"
+        And the user enters password "testpass"
+        And the user clicks login
+        Then the user should be logged in successfully
+        And the user should see the dashboard
+        When I add an item to cart
+        Then the order should be processed successfully
+```
 
 ## Usage
 
@@ -47,3 +75,16 @@ Feature: Order Processing
 ```
 
 The plugin will automatically find and expand the referenced scenarios during code generation.
+
+## Supported Step Keywords
+
+You can use scenario calls with any step keyword:
+- `Given I call scenario "..." from feature "..."`
+- `When I call scenario "..." from feature "..."`  
+- `Then I call scenario "..." from feature "..."`
+- `And I call scenario "..." from feature "..."`
+- `But I call scenario "..." from feature "..."`
+
+## Installation
+
+The plugin is automatically discovered during the build process when installed as a NuGet package.
