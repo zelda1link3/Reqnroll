@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <PackageId>Reqnroll.ScenarioCall.Generator</PackageId>
+    <Version>3.0.0-local</Version>
+    <Description>Reqnroll plugin for calling scenarios from other features during code generation</Description>
+    <Authors>Reqnroll</Authors>
+    <Company>Reqnroll</Company>
+    <Product>Reqnroll</Product>
+    <Copyright>Copyright © Reqnroll 2024</Copyright>
+    <PackageTags>reqnroll;scenariocall;generator</PackageTags>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Reqnroll.Generator\Reqnroll.Generator.csproj" />
+    <ProjectReference Include="..\..\Reqnroll.Parser\Reqnroll.Parser.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Reqnroll.ScenarioCall.Generator.nuspec" Pack="false" />
+  </ItemGroup>
+
+</Project>

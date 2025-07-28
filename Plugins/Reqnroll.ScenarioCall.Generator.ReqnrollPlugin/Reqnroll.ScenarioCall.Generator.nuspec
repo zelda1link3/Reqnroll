@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>Reqnroll.ScenarioCall.Generator</id>
+    <version>$version$</version>
+    <title>Reqnroll ScenarioCall Generator Plugin</title>
+    <authors>$authors$</authors>
+    <description>$description$</description>
+    <copyright>$copyright$</copyright>
+    <tags>$tags$</tags>
+    <dependencies>
+      <group targetFramework="net6.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="bin\$configuration$\net6.0\Reqnroll.ScenarioCall.Generator.ReqnrollPlugin.dll" target="tools\generator\Reqnroll.ScenarioCall.Generator.ReqnrollPlugin.dll" />
+  </files>
+</package>
