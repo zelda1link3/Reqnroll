@@ -1,36 +1,50 @@
 using System;
 using System.Collections.Generic;
-using System.CodeDom;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using Reqnroll.Configuration;
+using Reqnroll.Generator;
+using Reqnroll.Generator.CodeDom;
+using Reqnroll.Generator.Interfaces;
 using Reqnroll.Generator.UnitTestConverter;
 using Reqnroll.Parser;
-using Gherkin.Ast;
 
 namespace Reqnroll.ScenarioCall.Generator.ReqnrollPlugin
 {
-    public class ScenarioCallFeatureGenerator : IFeatureGenerator
+    public class ScenarioCallTestGenerator : TestGenerator
     {
-        private readonly IFeatureGenerator _baseGenerator;
         private readonly Dictionary<string, string> _featureFileCache = new();
 
-        public ScenarioCallFeatureGenerator(IFeatureGenerator baseGenerator, ReqnrollDocument document)
+        public ScenarioCallTestGenerator(
+            ReqnrollConfiguration reqnrollConfiguration,
+            ProjectSettings projectSettings,
+            ITestHeaderWriter testHeaderWriter,
+            ITestUpToDateChecker testUpToDateChecker,
+            IFeatureGeneratorRegistry featureGeneratorRegistry,
+            CodeDomHelper codeDomHelper,
+            IGherkinParserFactory gherkinParserFactory)
+            : base(reqnrollConfiguration, projectSettings, testHeaderWriter, testUpToDateChecker, featureGeneratorRegistry, codeDomHelper, gherkinParserFactory)
         {
-            _baseGenerator = baseGenerator;
         }
 
-        public CodeNamespace GenerateUnitTestFixture(ReqnrollDocument document, string testClassName, string targetNamespace, out IEnumerable<string> warnings)
+        protected override ReqnrollDocument ParseContent(IGherkinParser parser, TextReader contentReader, ReqnrollDocumentLocation documentLocation)
         {
-            // The document is already parsed at this point, so we need to work at a different level
-            // For now, let's just delegate to the base generator
-            // We'll implement content preprocessing at the parser level instead
-            return _baseGenerator.GenerateUnitTestFixture(document, testClassName, targetNamespace, out warnings);
+            // Read the original content
+            var originalContent = contentReader.ReadToEnd();
+
+            // Preprocess to expand scenario calls
+            var expandedContent = PreprocessFeatureContent(originalContent);
+
+            // Parse the expanded content
+            using (var expandedReader = new StringReader(expandedContent))
+            {
+                return parser.Parse(expandedReader, documentLocation);
+            }
         }
 
-        // Helper method to preprocess feature file content and expand scenario calls
-        public string PreprocessFeatureContent(string originalContent)
+        private string PreprocessFeatureContent(string originalContent)
         {
             var lines = originalContent.Split('\n');
             var result = new StringBuilder();
@@ -61,10 +75,18 @@ namespace Reqnroll.ScenarioCall.Generator.ReqnrollPlugin
                     continue;
                 }
                 
+                // Reset scenario flag when we encounter a new feature or background
+                if (trimmedLine.StartsWith("Feature:") || trimmedLine.StartsWith("Background:"))
+                {
+                    inScenario = false;
+                    result.AppendLine(line);
+                    continue;
+                }
+                
                 // Check for scenario call steps when in a scenario
                 if (inScenario && IsScenarioCallStep(trimmedLine))
                 {
-                    var expandedSteps = ExpandScenarioCall(trimmedLine, currentFeatureName);
+                    var expandedSteps = ExpandScenarioCall(line, currentFeatureName);
                     if (expandedSteps != null)
                     {
                         result.Append(expandedSteps);

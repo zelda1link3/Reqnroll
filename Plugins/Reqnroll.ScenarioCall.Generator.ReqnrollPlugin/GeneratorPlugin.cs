@@ -18,7 +18,8 @@ namespace Reqnroll.ScenarioCall.Generator.ReqnrollPlugin
         {
             generatorPluginEvents.RegisterDependencies += (sender, args) =>
             {
-                args.ObjectContainer.RegisterTypeAs<ScenarioCallFeatureGeneratorProvider, Reqnroll.Generator.UnitTestConverter.IFeatureGeneratorProvider>();
+                // Register our custom test generator that preprocesses scenario calls
+                args.ObjectContainer.RegisterTypeAs<ScenarioCallTestGenerator, Reqnroll.Generator.Interfaces.ITestGenerator>();
             };
         }
     }
